@@ -1,0 +1,37 @@
+#!/bin/sh
+
+HOST_DISPLAY="$DISPLAY"
+
+export DISPLAY=:8
+export LD_LIBRARY_PATH=/usr/lib/nvidia-331:/usr/lib32/nvidia-331/
+
+# Initialize display once
+optirun true
+
+# Disable default mouse input (your mouse on the laptop)
+xinput disable "<default pointer>"
+
+# Setup synergy
+synergys -f -a 127.0.0.1 --display "$HOST_DISPLAY" -n ubuntu --config $HOME/.extsyn.conf &
+ss=$!
+sleep 5
+
+synergyc -f -n hdmi --display :8 127.0.0.1 &
+sc=$!
+
+# Run application
+"$@" &
+pid=$!
+
+killthem() {
+	kill $sc
+	kill $ss
+	kill $pid
+}
+
+# Clean up at the end
+trap killthem INT TERM
+
+wait $pid
+
+killthem
