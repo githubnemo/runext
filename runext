@@ -1,31 +1,79 @@
 #!/bin/sh
 
 HOST_DISPLAY="$DISPLAY"
-
 export DISPLAY=:8
-export LD_LIBRARY_PATH=/usr/lib/nvidia-331:/usr/lib32/nvidia-331/
 
-# Initialize display once
-optirun true
+usage() {
+	echo "$0 [-32] <program> <parameters...>"
+	exit 1
+}
 
-# Disable default mouse input (your mouse on the laptop)
-xinput disable "<default pointer>"
+while true; do
+	case $1 in
+		-*) case $1 in
+				-32) NVIDIA_ARCH=32
+					;;
+				  *) usage
+					;;
+			esac
+			;;
+		 *) break
+			;;
+	esac
+	shift 1
+done
 
-# Setup synergy
-synergys -f -a 127.0.0.1 --display "$HOST_DISPLAY" -n ubuntu --config $HOME/.extsyn.conf &
-ss=$!
-sleep 5
+. "$(dirname $0)/nvidia_libraries.sh"
 
-synergyc -f -n hdmi --display :8 127.0.0.1 &
-sc=$!
+external_x_running() {
+	ps -h -o cmd $(pgrep Xorg) | grep -q ":${DISPLAY}"
+	return $?
+}
+
+synergy_running() {
+	pgrep -f .extsyn.conf >/dev/null
+	return $?
+}
+
+is_external_x_running=false
+
+if external_x_running; then
+	is_external_x_running=true
+fi
+
+is_synergy_running=false
+
+if synergy_running; then
+	is_synergy_running=true
+fi
+
+if ! $is_external_x_running; then
+	# Initialize display once
+	optirun true
+
+	# Disable default mouse input (your mouse on the laptop)
+	xinput disable "<default pointer>"
+fi
+
+if ! $is_synergy_running; then
+	# Setup synergy
+	synergys -f -a 127.0.0.1 --display "$HOST_DISPLAY" -n ubuntu --config $HOME/.extsyn.conf &
+	ss=$!
+	sleep 5
+
+	synergyc -f -n hdmi --display "$DISPLAY" 127.0.0.1 &
+	sc=$!
+fi
 
 # Run application
 "$@" &
 pid=$!
 
 killthem() {
-	kill $sc
-	kill $ss
+	if ! $is_synergy_running; then
+		kill $sc
+		kill $ss
+	fi
 	kill $pid
 }
 
