@@ -61,7 +61,7 @@ if ! $is_synergy_running; then
 	ss=$!
 	sleep 5
 
-	synergyc -f -n hdmi --display "$DISPLAY" 127.0.0.1 &
+	synergyc -f -n egpu --display "$DISPLAY" 127.0.0.1 &
 	sc=$!
 fi
 
